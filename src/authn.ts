@@ -8,10 +8,37 @@ export interface Credentials {
 }
 
 export default async function getCredentials({
-  profile = "default",
-  assume = [] as Array<string>
-} = {}): Promise<Credentials> {
-  const baseCreds: Promise<Credentials> = new Promise((resolve, reject) => {
+  profile,
+  assume = []
+}: { profile?: string; assume?: string[] } = {}): Promise<Credentials> {
+  const baseCreds: Promise<Credentials> = profile
+    ? getSharedIniFileCredentials(profile)
+    : getDefaultCredentials();
+  return assume.reduce(
+    async (
+      prevCreds: Promise<Credentials>,
+      role: string
+    ): Promise<Credentials> => assumeRole(await prevCreds, role),
+    baseCreds
+  );
+}
+
+async function getDefaultCredentials(): Promise<Credentials> {
+  return new Promise((resolve, reject) => {
+    AWS.config.getCredentials(error => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(AWS.config.credentials);
+      }
+    });
+  });
+}
+
+async function getSharedIniFileCredentials(
+  profile: string
+): Promise<Credentials> {
+  return new Promise((resolve, reject) => {
     const creds = new AWS.SharedIniFileCredentials({
       profile,
       callback: (error): void => {
@@ -23,13 +50,6 @@ export default async function getCredentials({
       }
     });
   });
-  return assume.reduce(
-    async (
-      prevCreds: Promise<Credentials>,
-      role: string
-    ): Promise<Credentials> => assumeRole(await prevCreds, role),
-    baseCreds
-  );
 }
 
 async function assumeRole(
