@@ -1,1 +1,1 @@
-# \$PROJECT_NAME
+# ec2-connect
